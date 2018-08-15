@@ -168,11 +168,48 @@ class Node:
         return _dct 
 
 
+class VnMeta:
+    def __init__(self, ns="vn"):
+        self.ns = ns    # ns=None puts attribute directly in instance.data.get without namespacing
+    def __get__(self, instance, owner):
+        if self.ns in instance.data and isinstance(instance.data[self.ns], dict):
+            _meta = instance.data[self.ns].get(self.name, None)
+        else:
+            #logger.error("VnMeta.__get__ «%s»; ns «%s» not in %s" % (self.name, self.ns, instance))
+            _meta = instance.data.get(self.name, None)
+        return _meta
+    def __set__(self, instance, value):
+        if self.ns:
+            instance.data[self.ns][self.name] = value
+        else:
+            instance.data[self.name] = value
+    def __set_name__(self, owner, name):
+        self.name = name
 
 
-VnNode = Node
 
+class UploadNode(Node):
+    db_uri = VnMeta()
+    _id = VnMeta(None)
+    name = VnMeta(None)
 
+    def __init__(self, name=None, parent=None, data=None, treedict=None):
+        super().__init__(name, parent, data, treedict)
+        self.data = collections.defaultdict(dict, self.data)
+
+    def to_treedict(self, recursive=True, full=True):
+        _dct = collections.defaultdict(dict)
+        if full:
+            _dct = {k:v for k, v in vars(self).items() if k not in ["parent", "childs"]}
+        else:
+            _dct["data"]["vn"] = self.get_data("vn")
+            _dct["name"] = self.name
+            _dct["_id"] = self._id
+        if recursive and self.childs:
+            _dct["childs"] = []
+            for _child in self.childs:
+                _dct["childs"].append( _child.to_treedict(recursive=recursive, full=full) )
+        return _dct 
 
 
 

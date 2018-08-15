@@ -1,14 +1,16 @@
 import collections
 import datetime
+import getpass
 import logging
 import mimetypes
 import os
 import pathlib
 import platform
+import stat
 import subprocess
 
-from system import dirDev2UUID, make_vn_fs_URI
-import vn_tree
+import utilities
+from vn_tree import UploadNode
 
 
 logger = logging.getLogger(__name__)
@@ -19,6 +21,91 @@ try:
     magic_imported = True
 except:
     magic_imported = False  
+
+try:
+    import pyudev
+    pyudev_imported = True
+except:
+    pyudev_imported = False
+
+
+def platform_metadata(fs_path):
+    _fs_dev_uuid = dirDev2UUID(fs_path)
+    meta = {
+            "platform": platform_info(),
+            "fs_dev_uuid": _fs_dev_uuid,
+            "user": user_info(),
+            "vn_timestamp": datetime.datetime.now(datetime.timezone.utc),
+    }
+    return meta
+
+
+
+def platform_info():
+    meta = {"system": platform.system(),
+            "node": platform.node(),
+            "release": platform.release(),
+            "version": platform.version(),
+            "machine": platform.machine(),
+            "processor": platform.processor(),
+            "python_version": platform.python_version(),
+            "cwd": os.getcwd()
+            }
+    return meta
+
+
+def user_info():
+    metaObj = {"name": getpass.getuser()
+             }
+    return metaObj
+
+
+def dirDev2UUID(dirpath):
+    # https://stackoverflow.com/questions/7551546/getting-friendly-device-names-in-python
+    # /sbin/udevadm info --export-db 
+    fs_dev_UUID = None
+    if platform.system() == 'Linux':
+        if pyudev_imported:
+            udevcontext = pyudev.Context()
+            device_num = os.stat(dirpath)[stat.ST_DEV]
+            try:
+                device = pyudev.Device.from_device_number(udevcontext, 'block', device_num)
+            except pyudev.DeviceNotFoundByNumberError as err:
+                logger.debug("dirDev2UUID: pyudev.DeviceNotFoundByNumberError for dirpath %s; %s" % (dirpath, err))
+                # if dirpath in user encrypted directory, cannot get device UUID
+                # try again, with top-level directory...
+                #_dpath = os.path.splitdrive(dirpath)[1]
+                _dparts = dirpath.split(os.path.sep)
+                if _dparts[0] == "":
+                    _dparts.pop(0)
+                _dpath = os.path.sep + _dparts[0]
+                # if len(_dparts)>1: 
+                #     _dpath = _dpath + os.path.sep + _dparts[1]
+                device_num = os.stat(_dpath)[stat.ST_DEV]
+                try:
+                    device = pyudev.Device.from_device_number(udevcontext, 'block', device_num)
+                except pyudev.DeviceNotFoundByNumberError:
+                    device = {} # give up...
+                # TODO: better way?
+                # du -h dirpath # get device name and insert in place of 'sda5' below
+                # device = pyudev.Device.from_name(context, 'block', 'sda5')
+            if 'ID_FS_UUID' in device.keys():
+                fs_dev_UUID = device['ID_FS_UUID']
+        else:
+            logger.warning("WARN system.dirDev2UUID requires module pyudev; %s" % (dirpath,))
+    elif platform.system() == 'Windows':
+        # on Windows use command mountvol 
+        sysret = subprocess.check_output(['mountvol', os.path.splitdrive(os.path.abspath(dirpath))[0], '/L'])
+        op = sysret.decode(encoding='UTF-8').strip()
+        regex = re.compile("Volume{([\\w|-]+)}") 
+        hit = regex.search(op) 
+        if hit:
+            fs_dev_UUID = hit.groups()[0]
+        else:
+            logger.error("ERROR system.dirDev2UUID cannot identify device for %s" % (dirpath,))
+    elif platform.system() == 'Darwin':
+        logger.error("ERROR system.dirDev2UUID not implemeted on OS X; %s" % (dirpath,))
+    return fs_dev_UUID
 
 
 def basic_fs_metadata(fs_path, rel_rootdir=None):
@@ -44,7 +131,7 @@ def basic_fs_metadata(fs_path, rel_rootdir=None):
             _fmime = meta.get("mime", None)
             if not _fmime:
                 meta["fs_mime"] = meta["fs_magic"].get("mime", None)
-    meta["fs_stat"] = obj2dict(_ppath.stat()) 
+    meta["fs_stat"] = utilities.obj2dict(_ppath.stat()) 
     try:
         meta["permissions"] = {
             "owner": _ppath.owner(),
@@ -86,19 +173,6 @@ def file_command_metadata(fpath):
     return mdata
 
 
-def obj2dict(obj):
-    # http://stackoverflow.com/a/61522
-    _dict={}
-    _dirList = dir(obj)
-    for key in _dirList:
-        if key.startswith("__"): continue
-        val = getattr(obj, key)
-        if callable(val): continue
-        if isinstance(val, bytes):
-            _dict[key] = val.decode()
-        else:
-            _dict[key] = val
-    return _dict
 
 
 def make_fs_tree(fs_path, parent=None, meta=None):
@@ -111,7 +185,7 @@ def make_fs_tree(fs_path, parent=None, meta=None):
     if meta and isinstance(meta, dict):
         _meta.update(meta)
     _meta["fs"] = basic_fs_metadata(fs_path, fs_path)
-    rootnode = vn_tree.VnNode(fs_pp.name, parent, data=_meta )
+    rootnode = UploadNode(fs_pp.name, parent, data=_meta )
     for localdir, dirs, files in os.walk(fs_path, topdown=True):
         _loc_pp = pathlib.Path(localdir)
         _loc_relpp = _loc_pp.relative_to(fs_path)
@@ -120,17 +194,17 @@ def make_fs_tree(fs_path, parent=None, meta=None):
             for dirname in dirs:
                 _dir_pp =  _loc_pp / dirname 
                 _meta["fs"] = basic_fs_metadata(_dir_pp.as_posix(), fs_path)
-                vn_tree.VnNode(_dir_pp.name, _parent, _meta )
+                UploadNode(_dir_pp.name, _parent, _meta )
             for filename in files:
                 _file_pp =  _loc_pp / filename
                 _meta["fs"] = basic_fs_metadata(_file_pp.as_posix(), fs_path)
-                vn_tree.VnNode(_file_pp.name, _parent, _meta )
+                UploadNode(_file_pp.name, _parent, _meta )
     for _node in rootnode:
         #_node_fs_path = _node.get_meta("fs_path")
         _node_fs_path = _node.get_data("fs", "fs_path")
         _pp = pathlib.Path(_node_fs_path)
         _relpath = _pp.relative_to(fs_path).as_posix()
-        _uri, _hash = make_vn_fs_URI(_node_fs_path, 
+        _uri, _hash = utilities.make_fs_uri(_node_fs_path, 
                         fs_dev_uuid=fs_dev_uuid)
         _node.set_data("vn", "vn_uri", value=_uri)
         _node.set_data("fs", "fs_dev_uuid", value=fs_dev_uuid)

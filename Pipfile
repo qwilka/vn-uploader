@@ -6,6 +6,8 @@ name = "pypi"
 [packages]
 girder-client = "*"
 toml = "*"
+pyudev = {version = "*", sys_platform = "== 'linux'"}
+python-magic = {version = "*", sys_platform = "== 'linux'"}
 
 [dev-packages]
 
