@@ -6,6 +6,7 @@ import mimetypes
 import os
 import pathlib
 import platform
+import re
 import stat
 import subprocess
 
