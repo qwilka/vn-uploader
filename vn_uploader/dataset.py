@@ -44,6 +44,7 @@ class UploadDataset(UploadNode):
         self.set_dstree(self.rootnode, desc="Original file system tree.")
         self.rootnode = self.fs_tree_extend()
         self.set_dstree(self.rootnode, treename="vfs", desc="Extended fs, including zipped files.")
+        self.db_insert()
 
 
     def set_dstree(self, rootnode, treename="", desc=""):
@@ -144,8 +145,8 @@ class UploadDataset(UploadNode):
                             _zparent = _node.get_nodepath(str(_zf_ppath.parent))
                             _zf_node = UploadNode(_zf_ppath.name, _zparent, None )
                         _zf_node._id = _hash
-                        _zf_node.db_uri = copy.copy(_node.db_uri)
-                        _zf_node.db_uri["_id"] = _hash
+                        # _zf_node.db_uri = copy.copy(_node.db_uri)
+                        # _zf_node.db_uri["_id"] = _hash
                         _zf_node.set_data("vn", "vn_uri", value=_uri)
                         _zf_node.set_data("vn", "vn_cat", value="fs_zfs")
                         #_zf_node.set_data("vn", "vn_uri_hash", value=_hash)

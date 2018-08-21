@@ -2,9 +2,12 @@
 import collections
 import copy
 import itertools
+import json
 import logging
 import operator
 import pathlib 
+
+import requests
 
 logger = logging.getLogger(__name__)
 
@@ -189,9 +192,9 @@ class VnMeta:
 
 
 class UploadNode(Node):
-    db_uri = VnMeta()
     _id = VnMeta(None)
     name = VnMeta(None)
+    vn_uri = VnMeta()
 
     def __init__(self, name=None, parent=None, data=None, treedict=None):
         super().__init__(name, parent, data, treedict)
@@ -211,9 +214,63 @@ class UploadNode(Node):
                 _dct["childs"].append( _child.to_treedict(recursive=recursive, full=full) )
         return _dct 
 
+    def db_insert(self, recursive=False):
+        if recursive:
+            retval = list(map(operator.methodcaller('db_insert', recursive=False), self))
+            retval = retval[0]
+        else:
+            _doc = self.get_data()
+            if self.childs:
+                _doc["childs"] = []
+                for _child in self.childs:
+                    _doc["childs"].append(_child._id)
+            _doc["parent"] = self.parent and self.parent._id
+            rdata = {
+                "doc": json.dumps(_doc, default=str),
+            }
+            params = {
+                "collection": "dataset",
+                "vn_datetime": True,
+            }
+            req = requests.post("http://localhost:8080/api/v1/visinum/vn_create_item", 
+                params=params, data=rdata)
+            if req.status_code != 200:
+                logger.debug('%s.db_insert response %s' % (self.__class__.__name__, req.text))
+        return req.text 
 
 
 
+# headers = {
+#     "Content-Type": "application/x-www-form-urlencoded",
+#     "Accept": "application/json",
+#     "Girder-Token": "0JZQtT85S2TRmgWOGuocLwkNHptUTWUXfB5HqEhE1HGh4DzQX7h5xUbvuqedarak",
+# }
+# datenow = datetime.datetime.now(datetime.timezone.utc)
+# dbdoc = {
+#     "_id": "testid2", 
+#     'key1': 'value2',
+#     "timestamp": datetime.datetime.now(datetime.timezone.utc),
+# }
+# import json
+# #{"_id": "testid2", 'key1': 'value1', 'date': datetime.datetime.now(datetime.timezone.utc)}
+# rdata = {
+#     "doc": json.dumps(dbdoc, default=str),
+# }
+# # import json
+# # rdata = json.dumps(rdata)
+# # r = requests.post("http://localhost:8080/api/v1/visinum/vn_create_item", 
+# #     headers=headers,
+# #     params={"collection":"dataset"}, 
+# #     data=rdata)
+# params = {
+#     "collection": "dataset",
+#     "vn_datetime": True,
+# }
+# r = requests.post("http://localhost:8080/api/v1/visinum/vn_create_item", 
+#     params=params, data=rdata)
+# print(r.url)
+# print(r.headers)
+# print(r.text)
 
 
 

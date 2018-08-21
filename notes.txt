@@ -11,9 +11,23 @@ https://stackoverflow.com/questions/38328176/getting-a-unique-hardware-id-with-p
 datetime
 ========
 https://stackoverflow.com/questions/2331592/why-does-datetime-datetime-utcnow-not-contain-timezone-information
+https://stackoverflow.com/questions/12281975/convert-timestamps-with-offset-to-datetime-obj-using-strptime
+https://stackoverflow.com/questions/698223/how-can-i-parse-a-time-string-containing-milliseconds-in-it-with-python/698279
+dd = datetime.datetime.now(datetime.timezone.utc)
+ss = dd.replace().isoformat()
+dt_aware = datetime.datetime.strptime('2018-08-21T13:24:43.939675+0000', '%Y-%m-%dT%H:%M:%S.%f%z')
 
 
 tkinter
 =======
 https://github.com/brysontyrrell/MacAdmins-2016-Craft-GUIs-with-Python-and-Tkinter
+
+
+requests
+========
+https://stackoverflow.com/questions/51124516/python-requests-post-with-header-and-parameters
+https://github.com/girder/girder/blob/master/docs/developer-cookbook.rst
+
+curl -X POST --header 'Content-Type: application/x-www-form-urlencoded' --header 'Accept: application/json' --header 'Girder-Token: 0JZQtT85S2TRmgWOGuocLwkNHptUTWUXfB5HqEhE1HGh4DzQX7h5xUbvuqedarak' -d 'doc=%7B%22_id%22%3A%20%22testitem%22%2C%20%22para1%22%3A%202%7D' 'http://localhost:8080/api/v1/visinum/vn_create_item?collection=dataset'
+
 
