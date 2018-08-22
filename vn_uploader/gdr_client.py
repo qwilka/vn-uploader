@@ -1,9 +1,9 @@
 
-import copy
-import datetime
-import json
+#import copy
+#import datetime
+#import json
 import logging
-import os
+#import os
 
 logger = logging.getLogger(__name__)
 
@@ -31,12 +31,20 @@ def get_girderclient():
     return gc
 
 
+def get_collection(vn_uri, desc=""):
+    gc = get_girderclient()
+    tgt_coll = None
+    for _coll in gc.listCollection():
+        print(_coll)
+        if _coll["name"] == vn_uri:
+            tgt_coll = _coll
+            break
+    if not tgt_coll:
+        tgt_coll = gc.createCollection(name=vn_uri, description=desc)
+    return tgt_coll
 
-def fix_JSON_datetime(dct):
-    # https://stackoverflow.com/questions/11875770/how-to-overcome-datetime-datetime-not-json-serializable
-    #_jsonstr = json.dumps(dct, default=bson.json_util.default)
-    _jsonstr = json.dumps(dct, default=str)
-    return json.loads(_jsonstr)
+
+
 
 
 
@@ -49,17 +57,23 @@ def delete_folder(folder_id):
 
 
 
-def upload_fs_dataset(fs_path, collection_id, meta=None, clean=True):
-    _meta = fix_JSON_datetime(meta)
-    gc = get_girderclient()
-    ds_folder = gc.createFolder(collection_id, "test foldername", "test description", 
-                parentType="collection", reuseExisting=True, metadata=_meta)
-    # delete folder contents (but retain folder), to refresh
-    if clean:
-        retVal = gc.delete("folder/{}/contents".format(ds_folder["_id"]) )
-        print(retVal)
-    retVal = gc.upload(fs_path, ds_folder["_id"], parentType='folder')
-    return retVal
+# def upload_fs_dataset(fs_dataset, meta=None, clean=True):
+#     if meta:
+#         _meta = fix_JSON_datetime(meta)
+#     else:
+#         _meta = None
+#     gc = get_girderclient()
+#     collection_id = self.get_data("gdr", "collection", "_id")
+#     ds_folder = gc.createFolder(collection_id, "test foldername", "test description", 
+#                 parentType="collection", reuseExisting=True, metadata=_meta)
+#     # delete folder contents (but retain folder), to refresh
+#     if clean:
+#         retVal = gc.delete("folder/{}/contents".format(ds_folder["_id"]) )
+#         print(retVal)
+#     retVal = gc.upload(fs_path, ds_folder["_id"], parentType='folder')
+#     return retVal
+
+
 
 
 

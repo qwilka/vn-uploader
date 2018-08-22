@@ -195,6 +195,7 @@ class UploadNode(Node):
     _id = VnMeta(None)
     name = VnMeta(None)
     vn_uri = VnMeta()
+    db_uri = VnMeta()
 
     def __init__(self, name=None, parent=None, data=None, treedict=None):
         super().__init__(name, parent, data, treedict)
@@ -215,6 +216,7 @@ class UploadNode(Node):
         return _dct 
 
     def db_insert(self, recursive=False):
+        retval = None
         if recursive:
             retval = list(map(operator.methodcaller('db_insert', recursive=False), self))
             retval = retval[0]
@@ -229,14 +231,15 @@ class UploadNode(Node):
                 "doc": json.dumps(_doc, default=str),
             }
             params = {
-                "collection": "dataset",
+                "collection": self.db_uri["collection"],
                 "vn_datetime": True,
             }
             req = requests.post("http://localhost:8080/api/v1/visinum/vn_create_item", 
                 params=params, data=rdata)
             if req.status_code != 200:
                 logger.debug('%s.db_insert response %s' % (self.__class__.__name__, req.text))
-        return req.text 
+            retval = req.text
+        return retval 
 
 
 

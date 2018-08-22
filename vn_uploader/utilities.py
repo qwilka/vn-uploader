@@ -74,6 +74,12 @@ def make_survey_uri(ast_uri="", svy_tag="", vn_date="", vn_cat="", vn_uri=None, 
     return _URI, _hash
 
 
+def uri_to_filename(uri):
+    #_filename = uri.replace("-", "")
+    _filename = uri.replace("||", "__")
+    _filename = _filename.replace("::", "--")
+    return _filename
+
 
 def obj2dict(obj):
     # http://stackoverflow.com/a/61522
@@ -88,3 +94,12 @@ def obj2dict(obj):
         else:
             _dict[key] = val
     return _dict
+
+
+def fix_JSON_datetime(dct):
+    # https://stackoverflow.com/questions/11875770/how-to-overcome-datetime-datetime-not-json-serializable
+    #_jsonstr = json.dumps(dct, default=bson.json_util.default)
+    _jsonstr = json.dumps(dct, default=str)
+    return json.loads(_jsonstr)
+
+

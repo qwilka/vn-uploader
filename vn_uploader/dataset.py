@@ -13,6 +13,8 @@ import zipfile
 logger = logging.getLogger(__name__)
 
 import fs_meta
+#from gdr_client import upload_fs_dataset
+import gdr_client
 import utilities
 from vn_tree import UploadNode, VnMeta
 
@@ -22,8 +24,11 @@ class UploadDataset(UploadNode):
     vn_uri = VnMeta()
     fs_path = VnMeta()
     fs_dev_uuid = VnMeta()
+    itm_collection = VnMeta()
 
-    def __init__(self, fs_path, name, vn_uri, meta):           
+    def __init__(self, fs_path, coll_uri, vn_uri, name=None, meta=None):
+        if not name:
+            name = utilities.uri_to_filename(vn_uri)   
         super().__init__(name, None, meta)
         self._ppath = pathlib.Path(fs_path)
         # self._stg_ppath = pathlib.Path(vn_config.get_config("server", "stg_staging_dir"))
@@ -32,6 +37,7 @@ class UploadDataset(UploadNode):
             logger.error('%s: arg «fs_path» not specified correctly: «%s»' % (self.__class__.__name__, fs_path))
             return None
         self.fs_path = fs_path
+        self.fs_dev_uuid = fs_meta.dirDev2UUID(fs_path)
         self.vn_uri = vn_uri
         self._id = utilities.string2UUID(self.vn_uri)
         self.db_uri = {
@@ -39,12 +45,15 @@ class UploadDataset(UploadNode):
             "collection": "dataset",
             "_id": self._id,
         }
-        self.ds_collection = "fs"            
+        self.itm_collection = "fs"    
+        self.rootnode = None        
         self.rootnode = self.make_fs_tree()
         self.set_dstree(self.rootnode, desc="Original file system tree.")
         self.rootnode = self.fs_tree_extend()
         self.set_dstree(self.rootnode, treename="vfs", desc="Extended fs, including zipped files.")
         self.db_insert()
+        self.gdr_upload()
+        self.rootnode.db_insert(recursive=True)
 
 
     def set_dstree(self, rootnode, treename="", desc=""):
@@ -102,7 +111,7 @@ class UploadDataset(UploadNode):
             #_node.set_data("vn", "vn_uri_hash", value=_hash)
             _db_uri = {
                 "db": "visinum",
-                "collection": self.ds_collection,
+                "collection": self.itm_collection,
                 "_id": _hash,                
             }
             _node._id = _hash
@@ -117,9 +126,10 @@ class UploadDataset(UploadNode):
         return rootnode
 
     def fs_tree_extend(self):
-        treedict = self.get_data("ds_tree", "treedict")
-        _vfs_root = UploadNode(treedict=treedict)
-        for _node in _vfs_root:
+        if not self.rootnode:
+            treedict = self.get_data("ds_tree", "treedict")
+            self.rootnode = UploadNode(treedict=treedict)
+        for _node in self.rootnode:
             if _node.name.lower().endswith(".zip"):
                 _rel_ppath = pathlib.Path(_node.get_data("vn", "fs_relpath"))
                 # _zip_stg_dir = self._stg_ppath / _rel_ppath.parent / (_rel_ppath.stem + "__ZIPDIR")
@@ -145,8 +155,8 @@ class UploadDataset(UploadNode):
                             _zparent = _node.get_nodepath(str(_zf_ppath.parent))
                             _zf_node = UploadNode(_zf_ppath.name, _zparent, None )
                         _zf_node._id = _hash
-                        # _zf_node.db_uri = copy.copy(_node.db_uri)
-                        # _zf_node.db_uri["_id"] = _hash
+                        _zf_node.db_uri = copy.copy(_node.db_uri)
+                        _zf_node.db_uri["_id"] = _hash
                         _zf_node.set_data("vn", "vn_uri", value=_uri)
                         _zf_node.set_data("vn", "vn_cat", value="fs_zfs")
                         #_zf_node.set_data("vn", "vn_uri_hash", value=_hash)
@@ -167,10 +177,87 @@ class UploadDataset(UploadNode):
 
         #list(map(operator.methodcaller('db_update', timestamp=False), _vfs_root))
         #print(_vfs_root.to_texttree())
-        self.set_dstree(_vfs_root, treename="vfs", desc="Extended FS tree, with zip file contents.")
-        self.rootnode = _vfs_root
-        return _vfs_root
+        self.set_dstree(self.rootnode, treename="vfs", desc="Extended FS tree, with zip file contents.")
+        #self.rootnode = _vfs_root
+        return self.rootnode
+    
+    def gdr_upload(self, meta=None, clean=True):
+        # if not collection_id:
+        #     collection_id = self.get_data("gdr", "collection", "_id")
+        if not self.rootnode:
+            self.rootnode = self.make_fs_tree()
+        if not meta:
+            meta = self.get_data()
+        _meta = utilities.fix_JSON_datetime(meta)
+        for _key in ["_id", "name", "desc"]:
+            _meta.pop(_key, None)
+        # if meta:
+        #     _meta = utilities.fix_JSON_datetime(meta)
+        # else:
+        #     _meta = self.get_data()
+        gc = gdr_client.get_girderclient()
+        collection_id = self.get_data("gdr", "collection", "_id")
+        #desc = getattr(self, "desc", "dataset")
+        desc = self.get_data("desc") or "dataset"
+        ds_folder = gc.createFolder(collection_id, self.name, desc, 
+                    parentType="collection", reuseExisting=True, metadata=_meta)
+        # delete folder contents (but retain folder), to refresh
+        if clean:
+            retVal = gc.delete("folder/{}/contents".format(ds_folder["_id"]) )
+            print(retVal)
 
+        def folder_callback(folder, fs_path):
+            _pp = pathlib.Path(fs_path)
+            nodepath = _pp.relative_to(self._ppath.parent).as_posix()
+            _node = self.rootnode.get_nodepath(nodepath)
+            _uri, _hash = utilities.make_fs_uri(fs_path, fs_dev_uuid=self.fs_dev_uuid)
+            _gr_db_uri = {
+                "db": "girder",
+                "collection": "folder",
+                "_id": folder['_id'],
+            }
+            _gdr_meta = {
+                "collection": self.get_data("gdr", "collection"),
+                "ds_folder_id": ds_folder["_id"],
+                "db_uri": _gr_db_uri,
+            }
+            _node.set_data("gdr", value=_gdr_meta)
+            _foldermeta = _node.get_data()
+            for _key in ["_id", "name", "desc"]:
+                _foldermeta.pop(_key, None)
+            _foldermeta = utilities.fix_JSON_datetime(_foldermeta)
+            gc.addMetadataToFolder(folder['_id'], _foldermeta)
+
+        def item_callback(item, fs_path):
+            _pp = pathlib.Path(fs_path)
+            nodepath = _pp.relative_to(self._ppath.parent).as_posix()
+            _node = self.rootnode.get_nodepath(nodepath)
+            _uri, _hash = utilities.make_fs_uri(fs_path, fs_dev_uuid=self.fs_dev_uuid)
+            _gr_db_uri = {
+                "db": "girder",
+                "collection": "item",
+                "_id": item['_id'],
+            }
+            _file_ids = []
+            for _child_file in gc.listFile(item["_id"]):
+                _file_ids.append(_child_file["_id"])
+            _gdr_meta = {
+                "gdr_collection": self.get_data("gdr", "collection"),
+                "ds_folder_id": ds_folder["_id"],
+                "db_uri": _gr_db_uri,
+                "gdr_file_id": _file_ids,
+            }
+            _node.set_data("gdr", value=_gdr_meta)
+            _itemmeta = _node.get_data()
+            for _key in ["_id", "name", "desc"]:
+                _itemmeta.pop(_key, None)
+            _itemmeta = utilities.fix_JSON_datetime(_itemmeta)
+            gc.addMetadataToItem(item['_id'], _itemmeta)
+
+        gc.addFolderUploadCallback(folder_callback)
+        gc.addItemUploadCallback(item_callback)
+        retVal = gc.upload(self.fs_path, ds_folder["_id"], parentType='folder')
+        return retVal
 
 
 
