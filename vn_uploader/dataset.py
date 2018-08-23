@@ -262,10 +262,41 @@ class UploadDataset(UploadNode):
 
 
 if __name__=="__main__":
-    fs_path = "/home/develop/Downloads/data/L51_dataset_testing"
-    meta = {
-        "testprop": 124,
+    fs_path = "/home/develop/testdata/L51_dataset_testing"
+    ast_uri = "NOR::SKARV::SUBSEA"
+    svy_tag = "spl-ims"
+    vn_date = "2015"
+
+    ds_meta = {
+        "name": "MBES_FVP",
+        "desc": "Skarv 2015 IMS survey; MBES and 5-point data.",
+        "ast": {
+            "ast_uri": ast_uri,
+        },
+        "geo": {
+            "EPSG": 23032,
+            "SRS": "EPSG:23032",        
+        },
+        "vn": { 
+            "vn_date": vn_date,
+        },
+        "svy": { 
+            "vn_date": vn_date,
+            "svy_tag": svy_tag,
+            "svy_domain": ast_uri,
+        },
     }
-    ds = UploadDataset(fs_path, "test-dataset-Wupload", "test_uri", meta)
-    print(ds.rootnode.to_texttree())
+
+    coll_uri, _ = utilities.make_survey_uri(ast_uri=ast_uri, svy_tag=svy_tag, vn_date=vn_date)
+    collection = gdr_client.get_collection(coll_uri, desc="test create new collection")
+    print(collection)
+    ds_meta["gdr"] = {
+        "collection" : {
+            "_id": collection["_id"],
+            "name": collection["name"],
+        },
+    }
+    ds_name = ds_meta["name"]
+    vn_uri, _ = utilities.make_survey_uri(ast_uri=ast_uri, svy_tag=svy_tag, vn_date=vn_date, vn_cat="ds", location=ds_name)
+    ds = UploadDataset(fs_path, coll_uri, vn_uri, ds_name, ds_meta)
 

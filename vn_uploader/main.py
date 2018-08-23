@@ -9,7 +9,7 @@ from utilities import make_survey_uri
 
 
 fs_path = "/home/develop/testdata/L51_dataset_testing"
-collection_id = "5b6479da20e05d37680264f4"
+#collection_id = "5b6479da20e05d37680264f4"
 
 ast_uri = "NOR::SKARV::SUBSEA"
 svy_tag = "spl-ims"
@@ -28,7 +28,7 @@ ds_meta = {
     "gdr": {
         "collection_name": "NOR::SKARV::SUBSEA",
         "collection_desc": "Skarv subsea data.",
-        "collection_id": collection_id,
+        "collection_id": None,
     },
     "vn": { 
         "vn_date": vn_date,
@@ -60,23 +60,23 @@ ds_meta["gdr"] = {
 ds_name = ds_meta["name"]
 vn_uri, _ = make_survey_uri(ast_uri=ast_uri, svy_tag=svy_tag, vn_date=vn_date, vn_cat="ds", location=ds_name)
 ds = UploadDataset(fs_path, coll_uri, vn_uri, ds_name, ds_meta)
-ds.rootnode = ds.make_fs_tree()
-ds.set_dstree(ds.rootnode, desc="Original file system tree.")
-ds.rootnode = ds.fs_tree_extend()
-ds.set_dstree(ds.rootnode, treename="vfs", desc="Extended fs, including zipped files.")
-ds.db_insert()
-retVal = ds.gdr_upload()
-ds.rootnode.db_insert(recursive=True)
-print(retVal)
+# ds.rootnode = ds.make_fs_tree()
+# ds.set_dstree(ds.rootnode, desc="Original file system tree.")
+# ds.rootnode = ds.fs_tree_extend()
+# ds.set_dstree(ds.rootnode, treename="vfs", desc="Extended fs, including zipped files.")
+# ds.db_insert()
+# retVal = ds.gdr_upload()
+# ds.rootnode.db_insert(recursive=True)
+# print(retVal)
 
-if UPLOAD:
-    vn_uri, _ = make_survey_uri(ast_uri=ast_uri, svy_tag=svy_tag, vn_date=vn_date)
-    #print(vn_uri)
-    ds = UploadDataset(fs_path, vn_uri, "test dataset", ds_meta)
-    print(ds.rootnode.to_texttree())
-    ds.rootnode.db_insert(recursive=True)
-    retVal = ds.gdr_upload()
-    print(retVal)
+# if UPLOAD:
+#     vn_uri, _ = make_survey_uri(ast_uri=ast_uri, svy_tag=svy_tag, vn_date=vn_date)
+#     #print(vn_uri)
+#     ds = UploadDataset(fs_path, vn_uri, "test dataset", ds_meta)
+#     print(ds.rootnode.to_texttree())
+#     ds.rootnode.db_insert(recursive=True)
+#     retVal = ds.gdr_upload()
+#     print(retVal)
 
 # headers = {
 #     "Content-Type": "application/x-www-form-urlencoded",

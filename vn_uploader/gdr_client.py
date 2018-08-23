@@ -7,27 +7,26 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+import utilities
 
 import girder_client
-import toml
+
 
 HTTPError = girder_client.HttpError
 
 
 
-def get_vn_config(conf_filepath="vn_config.toml"):
-    with open(conf_filepath, 'r') as conf_fh:
-        _config = toml.load(conf_fh)
-    return _config
 
 def get_girderclient():
-    _config = get_vn_config()
-    host = _config["girder"]["host"]
-    port = _config["girder"]["port"]
-    apiRoot = _config["girder"]["apiRoot"]
-    api_key = _config["girder"]["api_key"]
-    gc = girder_client.GirderClient(host=host, port=port, apiRoot=apiRoot)
-    gc.authenticate(apiKey=api_key)
+    # _config = utilities.get_config()
+    # host = _config["girder"]["host"]
+    # port = _config["girder"]["port"]
+    # apiRoot = _config["girder"]["apiRoot"]
+    # api_key = _config["girder"]["api_key"]
+    # gc = girder_client.GirderClient(host=host, port=port, apiRoot=apiRoot)
+    _config = utilities.app_config
+    gc = girder_client.GirderClient(apiUrl=_config["girder"]["apiUrl"])
+    gc.authenticate(apiKey=_config["girder"]["apiKey"])
     return gc
 
 

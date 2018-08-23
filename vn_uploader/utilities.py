@@ -8,14 +8,25 @@ import re
 import sys
 import uuid
 
-
-
+import toml
 
 logger = logging.getLogger(__name__)
 
+app_config = {}
 
+def get_config(conf_filepath="vn_config.toml"):
+    global app_config
+    with open(conf_filepath, 'r') as conf_fh:
+        app_config = toml.load(conf_fh)
+    return app_config
 
+get_config()
 
+def make_req_url(*paths):
+    apiUrl = app_config["girder"]["apiUrl"] 
+    if apiUrl.endswith("/"):
+        apiUrl = apiUrl[:-1]
+    return apiUrl + "/" + "/".join(paths)
 
 def string2UUID(namestring):
     """Calculate a version3 UUID from a string. 
