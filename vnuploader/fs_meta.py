@@ -10,8 +10,8 @@ import re
 import stat
 import subprocess
 
-import utilities
-from vn_tree import UploadNode
+from . import vn_utilities
+from .vn_tree import UploadNode
 
 
 logger = logging.getLogger(__name__)
@@ -132,7 +132,7 @@ def basic_fs_metadata(fs_path, rel_rootdir=None):
             _fmime = meta.get("mime", None)
             if not _fmime:
                 meta["fs_mime"] = meta["fs_magic"].get("mime", None)
-    meta["fs_stat"] = utilities.obj2dict(_ppath.stat()) 
+    meta["fs_stat"] = vn_utilities.obj2dict(_ppath.stat()) 
     try:
         meta["permissions"] = {
             "owner": _ppath.owner(),
@@ -205,7 +205,7 @@ def make_fs_tree(fs_path, parent=None, meta=None):
         _node_fs_path = _node.get_data("fs", "fs_path")
         _pp = pathlib.Path(_node_fs_path)
         _relpath = _pp.relative_to(fs_path).as_posix()
-        _uri, _hash = utilities.make_fs_uri(_node_fs_path, 
+        _uri, _hash = vn_utilities.make_fs_uri(_node_fs_path, 
                         fs_dev_uuid=fs_dev_uuid)
         _node.set_data("vn", "vn_uri", value=_uri)
         _node.set_data("fs", "fs_dev_uuid", value=fs_dev_uuid)

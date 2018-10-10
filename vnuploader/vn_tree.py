@@ -9,7 +9,8 @@ import pathlib
 
 import requests
 
-import utilities
+#from . import utilities
+from . import vn_config
 
 logger = logging.getLogger(__name__)
 
@@ -219,7 +220,7 @@ class UploadNode(Node):
 
     def db_insert(self, recursive=False):
         retval = None
-        _config = utilities.app_config
+        _config = vn_config.app_config
         if recursive:
             retval = list(map(operator.methodcaller('db_insert', recursive=False), self))
             retval = retval[0]
@@ -239,7 +240,7 @@ class UploadNode(Node):
                 "vn_datetime": True,
             }
             #req = requests.post("http://localhost:8080/api/v1/visinum/vn_create_item", 
-            req_url = utilities.make_req_url("visinum/vn_create_item")
+            req_url = vn_config.make_req_url("visinum/vn_create_item")
             req = requests.post(req_url, params=params, data=rdata)
             if req.status_code != 200:
                 logger.debug('%s.db_insert response %s' % (self.__class__.__name__, req.text))

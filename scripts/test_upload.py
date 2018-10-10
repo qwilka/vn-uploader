@@ -2,10 +2,10 @@
 
 # import requests
 
-from dataset import UploadDataset
-import gdr_client
+from vnuploader.dataset import UploadDataset
+from vnuploader import gdr_client
 #from gdr_client import upload_fs_dataset, delete_folder
-from utilities import make_survey_uri
+from vnuploader.vn_utilities import make_survey_uri
 
 
 fs_path = "/home/develop/testdata/L51_dataset_testing"
@@ -49,7 +49,7 @@ ds_meta = {
 UPLOAD = False
 
 coll_uri, _ = make_survey_uri(ast_uri=ast_uri, svy_tag=svy_tag, vn_date=vn_date)
-collection = gdr_client.get_collection(coll_uri, desc="test create new collection")
+collection = gdr_client.get_collection(coll_uri, desc="Skarv 2015 pipeline IMS survey data.")
 print(collection)
 ds_meta["gdr"] = {
     "collection" : {

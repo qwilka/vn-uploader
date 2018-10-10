@@ -7,7 +7,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-import utilities
+from . import vn_config
 
 import girder_client
 
@@ -24,7 +24,7 @@ def get_girderclient():
     # apiRoot = _config["girder"]["apiRoot"]
     # api_key = _config["girder"]["api_key"]
     # gc = girder_client.GirderClient(host=host, port=port, apiRoot=apiRoot)
-    _config = utilities.app_config
+    _config = vn_config.app_config
     gc = girder_client.GirderClient(apiUrl=_config["girder"]["apiUrl"])
     gc.authenticate(apiKey=_config["girder"]["apiKey"])
     return gc
