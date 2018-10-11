@@ -16,28 +16,37 @@ default_conf = """
 apiKey = "EdKeaqELS40XIrepHcXZFuLQzrMOGUJOVIeeyR5Z"
 apiUrl = "http://localhost:8080/api/v1"
 
-[visinum]
-db = "testing"
+[database]
+host = "localhost"
+port = 3004
+db = "visinum"
 """
 
 
-def load_config(conf_filepath=None):
+def load_config(filepath):
     global app_config
-    if conf_filepath is None:
-        _config = toml.loads(default_conf)
-    elif os.path.isfile(conf_filepath):
-        with open(conf_filepath, 'r') as conf_fh:
-            _config = toml.load(conf_fh)
+    _config = {}
+    if isinstance(filepath, str) and os.path.isfile(filepath):
+        try:
+            with open(filepath, 'r') as conf_fh:
+                _config = toml.load(conf_fh)
+        except Exception as err: 
+            logger.error("load_config: cannot load config file «%s», failed with error «%s»." % (filepath, err) )
+    elif isinstance(filepath, str):
+        try:
+            _config = toml.loads(filepath)
+        except Exception as err: 
+            logger.error("load_config: cannot load config string «%s», failed with error «%s»." % (filepath, err) )
     else:
-        logger.error("load_config: Cannot find config file «%s» in directory «%s»" % (conf_filepath, os.getcwd()) )
+        logger.error("load_config: cannot find config file «%s» in directory «%s»" % (filepath, os.getcwd()) )
     vn_utilities.rupdate(app_config, _config)
     return app_config
 
 
-if "app_config" not in globals():  # initiailize
+if "app_config" not in globals():  # initiailize (this is not necessary???)
     app_config = {}
-    load_config()
-#print("vn-config", app_config)
+    load_config(default_conf)
+print("vn-config globals():", globals()["app_config"])
 
 
 def get_config(*keys):

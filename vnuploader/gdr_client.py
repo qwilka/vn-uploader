@@ -30,16 +30,16 @@ def get_girderclient():
     return gc
 
 
-def get_collection(vn_uri, desc=""):
+def get_collection(name, description=""):
     gc = get_girderclient()
     tgt_coll = None
     for _coll in gc.listCollection():
-        print(_coll)
-        if _coll["name"] == vn_uri:
+        print("get_collection: found «{}»".format(_coll["name"]))
+        if _coll["name"] == name:
             tgt_coll = _coll
             break
     if not tgt_coll:
-        tgt_coll = gc.createCollection(name=vn_uri, description=desc)
+        tgt_coll = gc.createCollection(name=name, description=description)
     return tgt_coll
 
 
