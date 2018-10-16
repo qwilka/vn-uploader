@@ -1,8 +1,9 @@
 import copy
+import json
 import logging
 import os
 
-import toml
+#import toml
 
 # from ..vn_girder import gr_users
 # from . import vn_URI
@@ -11,16 +12,37 @@ from . import vn_utilities
 logger = logging.getLogger(__name__)
 
 
-default_conf = """
-[girder]
-apiKey = "EdKeaqELS40XIrepHcXZFuLQzrMOGUJOVIeeyR5Z"
-apiUrl = "http://localhost:8080/api/v1"
+# default_conf = """
+# [girder]
+# apiKey = "EdKeaqELS40XIrepHcXZFuLQzrMOGUJOVIeeyR5Z"
+# apiUrl = "http://localhost:8080/api/v1"
 
-[database]
-host = "localhost"
-port = 3004
-db = "visinum"
-"""
+# [database]
+# host = "localhost"
+# port = 3004
+# db = "visinum"
+# """
+
+default_conf = {
+    "database": {
+        "host": "localhost",
+        "port": 3004,
+        "db": "visinum"
+    },
+    "girder": {
+        "apiUrl": "http://localhost:8080/api/v1",
+        "apiKey": "EdKeaqELS40XIrepHcXZFuLQzrMOGUJOVIeeyR5Z",
+    },
+}
+
+app_config = {}
+
+
+def initiailize(conf=None):
+    load_config(default_conf)
+    if conf:
+        load_config(conf)
+    return app_config
 
 
 def load_config(filepath):
@@ -29,24 +51,26 @@ def load_config(filepath):
     if isinstance(filepath, str) and os.path.isfile(filepath):
         try:
             with open(filepath, 'r') as conf_fh:
-                _config = toml.load(conf_fh)
+                _config = json.load(conf_fh)
         except Exception as err: 
             logger.error("load_config: cannot load config file «%s», failed with error «%s»." % (filepath, err) )
-    elif isinstance(filepath, str):
-        try:
-            _config = toml.loads(filepath)
-        except Exception as err: 
-            logger.error("load_config: cannot load config string «%s», failed with error «%s»." % (filepath, err) )
+    elif isinstance(filepath, dict):
+        _config = filepath
+    # elif isinstance(filepath, str):
+    #     try:
+    #         _config = json.loads(filepath)
+    #     except Exception as err: 
+    #         logger.error("load_config: cannot load config string «%s», failed with error «%s»." % (filepath, err) )
     else:
         logger.error("load_config: cannot find config file «%s» in directory «%s»" % (filepath, os.getcwd()) )
     vn_utilities.rupdate(app_config, _config)
     return app_config
 
 
-if "app_config" not in globals():  # initiailize (this is not necessary???)
-    app_config = {}
-    load_config(default_conf)
-print("vn-config globals():", globals()["app_config"])
+# if "app_config" not in globals():  # initiailize (this is not necessary???)
+#     app_config = {}
+#     load_config(default_conf)
+# print("vn-config globals():", globals()["app_config"])
 
 
 def get_config(*keys):

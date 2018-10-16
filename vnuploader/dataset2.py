@@ -3,7 +3,6 @@ import collections
 import copy
 import datetime
 import fnmatch
-#import json
 import logging
 #import operator
 import os
@@ -13,41 +12,33 @@ import zipfile
 
 logger = logging.getLogger(__name__)
 
-
-#from vntree import Node, TreeAttr
-
-
 from . import fs_meta
 from . import gdr_client
-from . import vn_config
 from . import vn_utilities
-from . import uri
-from .tree import UploadNode, TreeAttr
-#from .vn_tree import UploadNode, VnMeta
-
-
+from .vn_tree import UploadNode, VnMeta
 
 
 
 class UploadDataset(UploadNode):
-    vn_uri = TreeAttr("vn")
-    fs_path = TreeAttr("vn")
-    fs_dev_uuid = TreeAttr("vn")
-    itm_collection = TreeAttr("vn")
+    vn_uri = VnMeta()
+    fs_path = VnMeta()
+    fs_dev_uuid = VnMeta()
+    itm_collection = VnMeta()
 
-    def __init__(self, name, fs_path, collection_id, meta):
-        if not isinstance(meta, dict) or "state" not in meta:
-            raise ValueError("{}.__init__: arg «meta»=«{}», must be dict containing «state» item.".format(self.__class__.__name__, meta))
-        self._ppath = pathlib.Path(fs_path)
-        if not fs_path or not self._ppath.exists():
-            raise IOError("{}.__init__: arg «fs_path», cannot find «{}»".format(self.__class__.__name__, fs_path))
+    def __init__(self, fs_path, coll_uri, vn_uri, name=None, meta=None):
+        if not name:
+            name = vn_utilities.uri_to_filename(vn_uri)   
         super().__init__(name, None, meta)
+        self._ppath = pathlib.Path(fs_path)
         # self._stg_ppath = pathlib.Path(vn_config.get_config("server", "stg_staging_dir"))
         # self._stg_ppath = self._stg_ppath / self.name
+        if not fs_path or not self._ppath.exists():
+            logger.error('%s: arg «fs_path» not specified correctly: «%s»' % (self.__class__.__name__, fs_path))
+            return None
         self.fs_path = fs_path
         self.fs_dev_uuid = fs_meta.dirDev2UUID(fs_path)
-        self._id = uri.state2uuid(self.data.get("state"))
-        self.vn_uri = "{}_{}".format(self.name, self._id)
+        self.vn_uri = vn_uri
+        self._id = vn_utilities.string2UUID(self.vn_uri)
         self.db_uri = {
             "db": "visinum",
             "collection": "dataset",
@@ -55,13 +46,12 @@ class UploadDataset(UploadNode):
         }
         self.itm_collection = "fs"    
         self.rootnode = None        
-        # self.rootnode = self.make_fs_tree()
-        # self.set_dstree(self.rootnode, desc="Original file system tree.")
-        # self.gdr_upload()
-        #self.rootnode = self.fs_tree_extend()
-        #self.set_dstree(self.rootnode, treename="zfs", desc="Extended fs, including zipped files.")
+        self.rootnode = self.make_fs_tree()
+        self.set_dstree(self.rootnode, desc="Original file system tree.")
+        self.rootnode = self.fs_tree_extend()
+        self.set_dstree(self.rootnode, treename="zfs", desc="Extended fs, including zipped files.")
         # self.db_insert()
-        #self.gdr_upload()
+        # self.gdr_upload()
         # self.rootnode.db_insert(recursive=True)
 
 
@@ -97,7 +87,7 @@ class UploadDataset(UploadNode):
         for localdir, dirs, files in os.walk(self.fs_path, topdown=True):
             _loc_ppath = pathlib.Path(localdir)
             _loc_relppath = _loc_ppath.relative_to(self.fs_path)
-            _parent = rootnode.get_node_by_nodepath(_loc_relppath.as_posix())
+            _parent = rootnode.get_nodepath(_loc_relppath.as_posix())
             if _parent:
                 for dirname in dirs:
                     _dir_ppath =  _loc_ppath / dirname 
@@ -161,7 +151,7 @@ class UploadDataset(UploadNode):
                         if str(_zf_ppath.parent)=='.':
                             _zf_node = UploadNode(_zf_ppath.name, _node, None )
                         else:
-                            _zparent = _node.get_node_by_nodepath(str(_zf_ppath.parent))
+                            _zparent = _node.get_nodepath(str(_zf_ppath.parent))
                             _zf_node = UploadNode(_zf_ppath.name, _zparent, None )
                         _zf_node._id = _hash
                         _zf_node.db_uri = copy.copy(_node.db_uri)
@@ -205,14 +195,11 @@ class UploadDataset(UploadNode):
         # else:
         #     _meta = self.get_data()
         gc = gdr_client.get_girderclient()
-        #collection_id = self.get_data("gdr", "collection", "_id")
-        collection_id = self.get_data("gdr", "collection_id")
+        collection_id = self.get_data("gdr", "collection", "_id")
         #desc = getattr(self, "desc", "dataset")
-        desc = self.get_data("description") or "dataset"
-        ##print("collection_id", collection_id, self.name, desc)
+        desc = self.get_data("desc") or "dataset"
         ds_folder = gc.createFolder(collection_id, self.name, desc, 
                     parentType="collection", reuseExisting=True, metadata=_meta)
-        ##return None
         # delete folder contents (but retain folder), to refresh
         if clean:
             retVal = gc.delete("folder/{}/contents".format(ds_folder["_id"]) )
@@ -220,9 +207,8 @@ class UploadDataset(UploadNode):
 
         def folder_callback(folder, fs_path):
             _pp = pathlib.Path(fs_path)
-            ##nodepath = _pp.relative_to(self._ppath.parent).as_posix()
-            nodepath = _pp.relative_to(self._ppath).as_posix()
-            _node = self.rootnode.get_node_by_nodepath(nodepath)
+            nodepath = _pp.relative_to(self._ppath.parent).as_posix()
+            _node = self.rootnode.get_nodepath(nodepath)
             _uri, _hash = vn_utilities.make_fs_uri(fs_path, fs_dev_uuid=self.fs_dev_uuid)
             _gr_db_uri = {
                 "db": "girder",
@@ -243,11 +229,8 @@ class UploadDataset(UploadNode):
 
         def item_callback(item, fs_path):
             _pp = pathlib.Path(fs_path)
-            ##nodepath = _pp.relative_to(self._ppath.parent).as_posix()
-            nodepath = _pp.relative_to(self._ppath).as_posix()
-            _node = self.rootnode.get_node_by_nodepath(nodepath)
-            # print(_pp)
-            # print(nodepath)
+            nodepath = _pp.relative_to(self._ppath.parent).as_posix()
+            _node = self.rootnode.get_nodepath(nodepath)
             _uri, _hash = vn_utilities.make_fs_uri(fs_path, fs_dev_uuid=self.fs_dev_uuid)
             _gr_db_uri = {
                 "db": "girder",

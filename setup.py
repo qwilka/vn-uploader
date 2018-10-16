@@ -25,11 +25,12 @@ setup(
         'Natural Language :: English',
     ],
     keywords='upload data',
-    packages=find_packages(exclude=['docs']),
+    packages=find_packages(exclude=['docs', 'examples']),
     python_requires='>=3.6',
     install_requires=[
         "girder-client",
         "toml",
-        "requests"
+        "requests",
+        "vntree"
     ],
 )

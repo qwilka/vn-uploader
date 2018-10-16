@@ -3,3 +3,4 @@ toml
 pyudev
 python-magic
 requests
+vntree

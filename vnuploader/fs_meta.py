@@ -11,7 +11,7 @@ import stat
 import subprocess
 
 from . import vn_utilities
-from .vn_tree import UploadNode
+from .tree import UploadNode
 
 
 logger = logging.getLogger(__name__)
