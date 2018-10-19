@@ -19,18 +19,14 @@ HTTPError = girder_client.HttpError
 cache_gc = None
 
 
-def initiailize(conf=None):
-    app_config = vn_config.initiailize(conf)
+def initialize(conf=None):
+    app_config = vn_config.initialize(conf)
     try:
         get_girderclient()
     except Exception as err:
-        logger.error("initiailize: failed with error «%s»." % (err,) )
+        logger.error("initialize: failed with error «%s»." % (err,) )
         return False
-    # gc = get_girderclient()
-    # if not gc:
-    #     logger.error("initiailize: failed.")
-    #     return False
-    return True
+    return app_config
 
 
 def get_girderclient():
@@ -42,12 +38,6 @@ def get_girderclient():
         _config = vn_config.app_config
         gc = girder_client.GirderClient(apiUrl=_config["girder"]["apiUrl"])
         gc.authenticate(apiKey=_config["girder"]["apiKey"])
-        # try:
-        #     gc = girder_client.GirderClient(apiUrl=_config["girder"]["apiUrl"])
-        #     gc.authenticate(apiKey=_config["girder"]["apiKey"])
-        # except Exception as err:
-        #     logger.error("get_girderclient: failed with error «%s»." % (err,) )
-        #     return False
         cache_gc = gc
         return gc
 

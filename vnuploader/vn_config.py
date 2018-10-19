@@ -35,10 +35,10 @@ default_conf = {
     },
 }
 
-app_config = {}
 
-
-def initiailize(conf=None):
+def initialize(conf=None):
+    global app_config
+    app_config = {}
     load_config(default_conf)
     if conf:
         load_config(conf)

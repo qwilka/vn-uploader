@@ -61,7 +61,6 @@ class UploadDataset(UploadNode):
         #self.rootnode = self.fs_tree_extend()
         #self.set_dstree(self.rootnode, treename="zfs", desc="Extended fs, including zipped files.")
         # self.db_insert()
-        #self.gdr_upload()
         # self.rootnode.db_insert(recursive=True)
 
 
@@ -107,16 +106,23 @@ class UploadDataset(UploadNode):
                     _file_ppath =  _loc_ppath / filename
                     _meta["fs"] = fs_meta.basic_fs_metadata(_file_ppath.as_posix(), self.fs_path)
                     UploadNode(_file_ppath.name, _parent, _meta )
+        _basestate = copy.copy(self.data.get("state", {}))
+        _basestate["statespace"] = "fs"
         for _node in rootnode:
             _fs_path = _node.get_data("fs", "fs_path")
             _ppath = pathlib.Path(_fs_path)
             _relpath = _ppath.relative_to(self._ppath.parent).as_posix()
             _node.set_data("vn", "fs_relpath", value=_relpath) 
-            _uri, _hash = vn_utilities.make_fs_uri(_fs_path, 
-                            fs_dev_uuid=self.fs_dev_uuid)
-            _node.set_data("vn", "vn_uri", value=_uri)
+            # _uri, _hash = vn_utilities.make_fs_uri(_fs_path, 
+            #                 fs_dev_uuid=self.fs_dev_uuid)
+            # _node.set_data("vn", "vn_uri", value=_uri)
             _node.set_data("fs", "fs_dev_uuid", value=self.fs_dev_uuid)
-            _node.set_data("fs", "fs_uri", value=_uri)
+            _state = copy.copy(_basestate)
+            _state["fs_path"] = _fs_path
+            _state["fs_dev_uuid"] = self.fs_dev_uuid
+            _node.set_data("state", value=_state)
+            _hash = uri.state2uuid(_state)
+            #_node.set_data("fs", "fs_uri", value=_uri)
             #_node.set_data("vn", "vn_uri_hash", value=_hash)
             _db_uri = {
                 "db": "visinum",
@@ -156,7 +162,11 @@ class UploadDataset(UploadNode):
                     for _info in _zipf.infolist():
                         _zf_ppath = pathlib.Path(_info.filename)
                         #print(_info.is_dir(), _zf_ppath, _zf_ppath.name)
-                        _uri, _hash = vn_utilities.make_fs_uri(path2=str(_zf_ppath), uri=_zfile_vn_uri)
+                        ##_uri, _hash = vn_utilities.make_fs_uri(path2=str(_zf_ppath), uri=_zfile_vn_uri)
+                        _state = copy.copy(_node.data.get("state", {}))
+                        _state["statespace"] = "zfs"
+                        _state["zip_path"] = str(_zf_ppath)
+                        _hash = uri.state2uuid(_state)
                         #print(_uri, _hash)
                         if str(_zf_ppath.parent)=='.':
                             _zf_node = UploadNode(_zf_ppath.name, _node, None )
@@ -164,9 +174,10 @@ class UploadDataset(UploadNode):
                             _zparent = _node.get_node_by_nodepath(str(_zf_ppath.parent))
                             _zf_node = UploadNode(_zf_ppath.name, _zparent, None )
                         _zf_node._id = _hash
+                        _zf_node.set_data("state", value=_state)
                         _zf_node.db_uri = copy.copy(_node.db_uri)
                         _zf_node.db_uri["_id"] = _hash
-                        _zf_node.set_data("vn", "vn_uri", value=_uri)
+                        #_zf_node.set_data("vn", "vn_uri", value=_uri)
                         _zf_node.set_data("vn", "vn_cat", value="fs_zfs")
                         #_zf_node.set_data("vn", "vn_uri_hash", value=_hash)
                         _vn_root_id = _node.get_data("vn", "vn_root_id")

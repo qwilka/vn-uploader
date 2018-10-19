@@ -1,24 +1,15 @@
 import logging
 import sys
 
-logger = logging.getLogger(__name__)
-
 from vnuploader.dataset import UploadDataset
 from vnuploader import gdr_client
 from vnuploader import uri
 from vnuploader.vn_config import load_config
 
-# conf = """
-# [girder]
-# apiUrl = "http://localhost:8080/api/v1"
-# apiKey = "EdKeaqELS40XIrepHcXZFuLQzrMOGUJOVIeeyR5Z"
-# assetstore_id = "5bae4900290a5428c1affdf0"
-
-# [database]
-# host = "localhost"
-# port = 3005
-# db = "testing"
-# """
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+lh = logging.StreamHandler()
+logger.addHandler(lh)
 
 conf = {
     "database": {
@@ -32,15 +23,15 @@ conf = {
     },
 }
 
-checkconf = load_config(conf)
-print("local_config=", checkconf)
-
 fs_path = "/home/develop/testdata/L51_dataset_testing"
 
-VN_DATABASE = True
+VN_DATABASE = True   # True: upload additional metadata Visinum
 
-retVal = gdr_client.initiailize()
-if not retVal:
+retVal = gdr_client.initialize(conf=conf)
+if retVal:
+    logger.info("%s: initialize with config=«%s»" % (__file__,retVal))
+else:
+    logger.error("%s: failed to initialize." % (__file__,))
     sys.exit(1)
 
 collection = gdr_client.get_collection(
@@ -66,9 +57,9 @@ ds_meta = {
 }
 
 ds_name = uri.state2string(ds_meta["state"], "${country}-${field}-${domain}_${survey}_${date}")
-#ds_meta[""]
-print("ds_name", ds_name)
-print(uri.state2uuid(ds_meta["state"]))
+# #ds_meta[""]
+# print("ds_name", ds_name)
+# print(uri.state2uuid(ds_meta["state"]))
 ds = UploadDataset(ds_name, fs_path, collection["_id"], ds_meta)
 ds.rootnode = ds.make_fs_tree()
 ds.set_dstree(ds.rootnode, desc="Original file system tree.")

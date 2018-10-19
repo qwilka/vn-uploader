@@ -1,5 +1,4 @@
 girder-client
-toml
 pyudev
 python-magic
 requests
