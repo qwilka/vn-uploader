@@ -140,7 +140,7 @@ class UploadDataset(UploadNode):
             _node.set_data("vn", "vn_transform", value=dict())
         return rootnode
 
-    def fs_tree_extend(self):
+    def fs_tree_extend(self, treename=None):
         if not self.rootnode:
             treedict = self.get_data("ds_tree", "treedict")
             self.rootnode = UploadNode(treedict=treedict)
@@ -197,7 +197,8 @@ class UploadDataset(UploadNode):
 
         #list(map(operator.methodcaller('db_update', timestamp=False), _vfs_root))
         #print(_vfs_root.to_texttree())
-        self.set_dstree(self.rootnode, treename="vfs", desc="Extended FS tree, with zip file contents.")
+        if treename and isinstance(treename, str):
+            self.set_dstree(self.rootnode, treename=treename, desc="Extended FS tree, with zip file contents.")
         #self.rootnode = _vfs_root
         return self.rootnode
     

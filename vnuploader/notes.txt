@@ -1,7 +1,0 @@
-
-
-https://packaging.python.org/tutorials/packaging-projects/
-
-$ pip install -r requirements.txt
-Successfully built girder-client pyudev
-twine 1.11.0 requires tqdm>=4.14, which is not installed.
