@@ -13,7 +13,7 @@ from . import vn_config
 
 class UploadNode(Node):
     _id = TreeAttr()
-    name = TreeAttr()
+    #name = TreeAttr()
     vn_uri = TreeAttr("vn")
     db_uri = TreeAttr("vn")
 

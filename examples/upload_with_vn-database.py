@@ -18,8 +18,8 @@ conf = {
         "db": "testing"
     },
     "girder": {
-        "api_url": "http://localhost:8080/api/v1",
-        "api_key": "EdKeaqELS40XIrepHcXZFuLQzrMOGUJOVIeeyR5Z",
+        "apiUrl": "http://localhost:8080/api/v1",
+        "apiKey": "EdKeaqELS40XIrepHcXZFuLQzrMOGUJOVIeeyR5Z",
     },
 }
 

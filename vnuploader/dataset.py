@@ -49,7 +49,7 @@ class UploadDataset(UploadNode):
         self._id = uri.state2uuid(self.data.get("state"))
         self.vn_uri = "{}_{}".format(self.name, self._id)
         self.db_uri = {
-            "db": "visinum",
+            "db": vn_config.get_config("database", "db"),
             "collection": "dataset",
             "_id": self._id,
         }
@@ -125,7 +125,7 @@ class UploadDataset(UploadNode):
             #_node.set_data("fs", "fs_uri", value=_uri)
             #_node.set_data("vn", "vn_uri_hash", value=_hash)
             _db_uri = {
-                "db": "visinum",
+                "db": vn_config.get_config("database", "db"),
                 "collection": self.itm_collection,
                 "_id": _hash,                
             }
@@ -156,7 +156,7 @@ class UploadDataset(UploadNode):
                 try:
                     _valid_zip = zipfile.is_zipfile(str(_zfile_ppath))
                 except zipfile.BadZipFile as err:
-                    logger.error("FsDataset.vfs_extend_import: cannot process zipfile «%s»; %s" % (str(_zfile_ppath),err))
+                    logger.error("UploadDataset.fs_tree_extend: cannot process zipfile «%s»; %s" % (str(_zfile_ppath),err))
                 if _valid_zip:
                     _zipf = zipfile.ZipFile(str(_zfile_ppath))
                     for _info in _zipf.infolist():
@@ -199,7 +199,6 @@ class UploadDataset(UploadNode):
         #print(_vfs_root.to_texttree())
         if treename and isinstance(treename, str):
             self.set_dstree(self.rootnode, treename=treename, desc="Extended FS tree, with zip file contents.")
-        #self.rootnode = _vfs_root
         return self.rootnode
     
     def gdr_upload(self, meta=None, clean=True):
