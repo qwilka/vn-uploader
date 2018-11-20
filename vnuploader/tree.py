@@ -6,16 +6,15 @@ import operator
 logger = logging.getLogger(__name__)
 
 import requests
-from vntree import Node, TreeAttr
+from vntree import Node, NodeAttr
 
 from . import vn_config
 
 
 class UploadNode(Node):
-    _id = TreeAttr()
-    #name = TreeAttr()
-    vn_uri = TreeAttr("vn")
-    db_uri = TreeAttr("vn")
+    _id = NodeAttr()
+    vn_uri = NodeAttr("vn")
+    db_uri = NodeAttr("vn")
 
     def __init__(self, name=None, parent=None, data=None, treedict=None):
         super().__init__(name, parent, data, treedict)

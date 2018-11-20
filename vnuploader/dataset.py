@@ -22,7 +22,7 @@ from . import gdr_client
 from . import vn_config
 from . import vn_utilities
 from . import uri
-from .tree import UploadNode, TreeAttr
+from .tree import UploadNode, NodeAttr
 #from .vn_tree import UploadNode, VnMeta
 
 
@@ -30,10 +30,10 @@ from .tree import UploadNode, TreeAttr
 
 
 class UploadDataset(UploadNode):
-    vn_uri = TreeAttr("vn")
-    fs_path = TreeAttr("vn")
-    fs_dev_uuid = TreeAttr("vn")
-    itm_collection = TreeAttr("vn")
+    #vn_uri = NodeAttr("vn")
+    fs_path = NodeAttr("vn")
+    fs_dev_uuid = NodeAttr("vn")
+    itm_collection = NodeAttr("vn")
 
     def __init__(self, name, fs_path, collection_id, meta):
         if not isinstance(meta, dict) or "state" not in meta:
@@ -53,7 +53,7 @@ class UploadDataset(UploadNode):
             "collection": "dataset",
             "_id": self._id,
         }
-        self.itm_collection = "fs"    
+        self.itm_collection = "fs"
         self.rootnode = None        
         # self.rootnode = self.make_fs_tree()
         # self.set_dstree(self.rootnode, desc="Original file system tree.")
@@ -207,7 +207,7 @@ class UploadDataset(UploadNode):
         if not self.rootnode:
             self.rootnode = self.make_fs_tree()
         if not meta:
-            meta = self.get_data()
+            meta = {k:v for k,v in self.data.items() if not k.startswith("ds_tree")}
         _meta = vn_utilities.fix_JSON_datetime(meta)
         for _key in ["_id", "name", "desc"]:
             _meta.pop(_key, None)

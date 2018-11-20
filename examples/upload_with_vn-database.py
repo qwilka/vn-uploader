@@ -49,17 +49,14 @@ ds_meta = {
     "state": {
         "country": "NOR",
         "field": "SKARV",
-        "domain": "SUBSEA",
-        "survey": "IMS",
+        "asset": "SUBSEA",
+        "activity": "IMS",
         "date": "2015",
         "statespace": "DS",        
     },
 }
 
-ds_name = uri.state2string(ds_meta["state"], "${country}-${field}-${domain}_${survey}_${date}")
-# #ds_meta[""]
-# print("ds_name", ds_name)
-# print(uri.state2uuid(ds_meta["state"]))
+ds_name = uri.state2string(ds_meta["state"], "${country}-${field}-${asset}_${activity}_${date}")
 ds = UploadDataset(ds_name, fs_path, collection["_id"], ds_meta)
 ds.rootnode = ds.make_fs_tree()
 ds.set_dstree(ds.rootnode, desc="Original file system tree.")
