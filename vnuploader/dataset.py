@@ -1,7 +1,7 @@
 
 import collections
 import copy
-import datetime
+from datetime import datetime, timezone
 import fnmatch
 #import json
 import logging
@@ -35,7 +35,7 @@ class UploadDataset(UploadNode):
     fs_dev_uuid = NodeAttr("vn")
     itm_collection = NodeAttr("vn")
 
-    def __init__(self, name, fs_path, collection_id, meta):
+    def __init__(self, name, fs_path, gdr_coll_name, meta):
         if not isinstance(meta, dict) or "state" not in meta:
             raise ValueError("{}.__init__: arg «meta»=«{}», must be dict containing «state» item.".format(self.__class__.__name__, meta))
         self._ppath = pathlib.Path(fs_path)
@@ -54,24 +54,29 @@ class UploadDataset(UploadNode):
             "_id": self._id,
         }
         self.itm_collection = "fs"
-        self.rootnode = None        
-        # self.rootnode = self.make_fs_tree()
-        # self.set_dstree(self.rootnode, desc="Original file system tree.")
+        self.dstree = None       
+        if "gdr" not in self.data:
+            self.data["gdr"] = {} 
+        _gdrcoll = gdr_client.get_collection(gdr_coll_name)
+        self.data["gdr"]["gdr_coll_name"] = gdr_coll_name
+        self.data["gdr"]["gdr_coll_id"] = _gdrcoll["_id"]
+        # self.dstree = self.make_fs_tree()
+        # self.set_dstree(self.dstree, desc="Original file system tree.")
         # self.gdr_upload()
-        #self.rootnode = self.fs_tree_extend()
-        #self.set_dstree(self.rootnode, treename="zfs", desc="Extended fs, including zipped files.")
+        #self.dstree = self.fs_tree_extend()
+        #self.set_dstree(self.dstree, treename="zfs", desc="Extended fs, including zipped files.")
         # self.db_insert()
-        # self.rootnode.db_insert(recursive=True)
+        # self.dstree.db_insert(recursive=True)
 
 
-    def set_dstree(self, rootnode, treename="", desc=""):
-        treedict = rootnode.to_treedict(full=False)
+    def set_dstree(self, dstree, treename="", desc=""):
+        treedict = dstree.to_treedict(full=False)
         _key = "ds_tree"
         if treename:
             _key = _key+"_"+treename
         self.set_data(_key, "desc", value=desc)
         self.set_data(_key, "treedict", value=treedict)
-        self.set_data(_key, "vn_timestamp", value=datetime.datetime.now(datetime.timezone.utc))
+        self.set_data(_key, "vn_timestamp", value=datetime.now(timezone.utc).timestamp())
         return True
 
     def get_dstree(self, treename=""):
@@ -81,10 +86,10 @@ class UploadDataset(UploadNode):
         treedict = self.get_data(_key, "treedict")
         if not treedict:
             logger.warning('%s.get_tree: cannot find tree «%s»' % (self.__class__.__name__, _key))
-            self.rootnode = None
+            self.dstree = None
             return None
-        self.rootnode = UploadNode(treedict=treedict)
-        return self.rootnode
+        self.dstree = UploadNode(treedict=treedict)
+        return self.dstree
 
 
     def make_fs_tree(self, parent=None, meta=None):
@@ -92,11 +97,11 @@ class UploadDataset(UploadNode):
         if meta and isinstance(meta, dict):
             _meta.update(meta)
         _meta["fs"] = fs_meta.basic_fs_metadata(self.fs_path)
-        rootnode = UploadNode(self._ppath.name, parent, data=_meta )
+        dstree = UploadNode(self._ppath.name, parent, data=_meta )
         for localdir, dirs, files in os.walk(self.fs_path, topdown=True):
             _loc_ppath = pathlib.Path(localdir)
             _loc_relppath = _loc_ppath.relative_to(self.fs_path)
-            _parent = rootnode.get_node_by_nodepath(_loc_relppath.as_posix())
+            _parent = dstree.get_node_by_nodepath(_loc_relppath.as_posix())
             if _parent:
                 for dirname in dirs:
                     _dir_ppath =  _loc_ppath / dirname 
@@ -108,7 +113,7 @@ class UploadDataset(UploadNode):
                     UploadNode(_file_ppath.name, _parent, _meta )
         _basestate = copy.copy(self.data.get("state", {}))
         _basestate["statespace"] = "fs"
-        for _node in rootnode:
+        for _node in dstree:
             _fs_path = _node.get_data("fs", "fs_path")
             _ppath = pathlib.Path(_fs_path)
             _relpath = _ppath.relative_to(self._ppath.parent).as_posix()
@@ -131,20 +136,20 @@ class UploadDataset(UploadNode):
             }
             _node._id = _hash
             _node.set_data("vn", "db_uri", value=_db_uri)
-            _node.set_data("vn", "vn_root_id", value=rootnode._id)
-            _node.set_data("vn", "vn_timestamp", value=datetime.datetime.now(datetime.timezone.utc)) 
+            _node.set_data("vn", "fs_root_id", value=dstree._id)
+            _node.set_data("vn", "vn_timestamp", value=datetime.now(timezone.utc).timestamp()) 
             #_node.set_data("vn", "fs_cat", value=_node.get_data("fs", "fs_cat")) # "vn_filetype"
             _node.set_data("vn", "ast_uri", value=None)
             _node.set_data("vn", "vn_cat", value="fs")
             #_node.set_data("vn", "vn_filetype", value=_vn_filetype)
             _node.set_data("vn", "vn_transform", value=dict())
-        return rootnode
+        return dstree
 
     def fs_tree_extend(self, treename=None):
-        if not self.rootnode:
+        if not self.dstree:
             treedict = self.get_data("ds_tree", "treedict")
-            self.rootnode = UploadNode(treedict=treedict)
-        for _node in self.rootnode:
+            self.dstree = UploadNode(treedict=treedict)
+        for _node in self.dstree:
             if _node.name.lower().endswith(".zip"):
                 _rel_ppath = pathlib.Path(_node.get_data("vn", "fs_relpath"))
                 # _zip_stg_dir = self._stg_ppath / _rel_ppath.parent / (_rel_ppath.stem + "__ZIPDIR")
@@ -165,7 +170,7 @@ class UploadDataset(UploadNode):
                         ##_uri, _hash = vn_utilities.make_fs_uri(path2=str(_zf_ppath), uri=_zfile_vn_uri)
                         _state = copy.copy(_node.data.get("state", {}))
                         _state["statespace"] = "zfs"
-                        _state["zip_path"] = str(_zf_ppath)
+                        _state["zfs_path"] = str(_zf_ppath)
                         _hash = uri.state2uuid(_state)
                         #print(_uri, _hash)
                         if str(_zf_ppath.parent)=='.':
@@ -176,36 +181,45 @@ class UploadDataset(UploadNode):
                         _zf_node._id = _hash
                         _zf_node.set_data("state", value=_state)
                         _zf_node.db_uri = copy.copy(_node.db_uri)
+                        # try:
+                        #     _zf_node.db_uri = copy.copy(_node.db_uri)
+                        # except Exception as err:
+                        #     print("ERROR", err)
+                        #     print("ERROR _zf_node.db_uri", str(_node.name))
+                        #     print("ERROR _node.data[vn]", str(_node.data["vn"]))
+                        #     print("ERROR _node.db_uri", str(_node.db_uri))
+                        #     print("ERROR _zf_node", _zf_node)
+                        #     print("ERROR str(_zf_ppath.parent)", str(_zf_ppath.parent))
                         _zf_node.db_uri["_id"] = _hash
                         #_zf_node.set_data("vn", "vn_uri", value=_uri)
-                        _zf_node.set_data("vn", "vn_cat", value="fs_zfs")
+                        _zf_node.set_data("vn", "vn_cat", value="zfs")
                         #_zf_node.set_data("vn", "vn_uri_hash", value=_hash)
-                        _vn_root_id = _node.get_data("vn", "vn_root_id")
-                        _zf_node.set_data("vn", "vn_root_id", value=_vn_root_id)
+                        #_vn_root_id = _node.get_data("vn", "vn_root_id")
+                        _zf_node.set_data("vn", "fs_root_id", value=_node.get_data("vn", "fs_root_id"))
                         _fs_relpath = _node.get_data("vn", "fs_relpath")
                         _zf_node.set_data("vn", "fs_relpath", value=_fs_relpath)
-                        _zf_node.set_data("vn", "zip_root_id", value=_node._id)
-                        _zf_node.set_data("vn", "zip_relpath", value=str(_zf_ppath))
+                        _zf_node.set_data("vn", "fs_zipfile_id", value=_node._id)
+                        _zf_node.set_data("vn", "zfs_relpath", value=str(_zf_ppath))
                         if _info.is_dir():
-                            _zf_node.set_data("vn", "fs_cat", value="zip_folder")
+                            _zf_node.set_data("vn", "zfs_cat", value="folder")
                             #print("DIR", _zf_ppath, _zf_ppath.parent, _node.path)
                         else:
-                            _zf_node.set_data("vn", "fs_cat", value="zip_file")
+                            _zf_node.set_data("vn", "zfs_cat", value="file")
                             #print("FILE", _zf_ppath, _zf_ppath.parent)
-                        _zf_node.set_data("vn", "vn_timestamp", value=datetime.datetime.now(datetime.timezone.utc))
+                        _zf_node.set_data("vn", "vn_timestamp", value=datetime.now(timezone.utc).timestamp())
                         _zf_node.set_data("vn", "vn_transform", value=dict())
 
         #list(map(operator.methodcaller('db_update', timestamp=False), _vfs_root))
         #print(_vfs_root.to_texttree())
         if treename and isinstance(treename, str):
-            self.set_dstree(self.rootnode, treename=treename, desc="Extended FS tree, with zip file contents.")
-        return self.rootnode
+            self.set_dstree(self.dstree, treename=treename, desc="Extended FS tree, with zip file contents.")
+        return self.dstree
     
     def gdr_upload(self, meta=None, clean=True):
         # if not collection_id:
         #     collection_id = self.get_data("gdr", "collection", "_id")
-        if not self.rootnode:
-            self.rootnode = self.make_fs_tree()
+        if not self.dstree:
+            self.dstree = self.make_fs_tree()
         if not meta:
             meta = {k:v for k,v in self.data.items() if not k.startswith("ds_tree")}
         _meta = vn_utilities.fix_JSON_datetime(meta)
@@ -217,11 +231,12 @@ class UploadDataset(UploadNode):
         #     _meta = self.get_data()
         gc = gdr_client.get_girderclient()
         #collection_id = self.get_data("gdr", "collection", "_id")
-        collection_id = self.get_data("gdr", "collection_id")
+        gdr_coll_id = self.get_data("gdr", "gdr_coll_id")
+        gdr_coll_name = self.get_data("gdr", "gdr_coll_name")
         #desc = getattr(self, "desc", "dataset")
-        desc = self.get_data("description") or "dataset"
+        desc = self.get_data("desc") or "dataset"
         ##print("collection_id", collection_id, self.name, desc)
-        ds_folder = gc.createFolder(collection_id, self.name, desc, 
+        ds_folder = gc.createFolder(gdr_coll_id, self.name, desc, 
                     parentType="collection", reuseExisting=True, metadata=_meta)
         ##return None
         # delete folder contents (but retain folder), to refresh
@@ -232,8 +247,9 @@ class UploadDataset(UploadNode):
         def folder_callback(folder, fs_path):
             _pp = pathlib.Path(fs_path)
             ##nodepath = _pp.relative_to(self._ppath.parent).as_posix()
-            nodepath = _pp.relative_to(self._ppath).as_posix()
-            _node = self.rootnode.get_node_by_nodepath(nodepath)
+            _relpp = _pp.relative_to(self._ppath)
+            nodepath = _relpp.as_posix()
+            _node = self.dstree.get_node_by_nodepath(nodepath)
             _uri, _hash = vn_utilities.make_fs_uri(fs_path, fs_dev_uuid=self.fs_dev_uuid)
             _gr_db_uri = {
                 "db": "girder",
@@ -241,9 +257,10 @@ class UploadDataset(UploadNode):
                 "_id": folder['_id'],
             }
             _gdr_meta = {
-                "collection": self.get_data("gdr", "collection"),
+                "gdr_coll_name": gdr_coll_name,
                 "ds_folder_id": ds_folder["_id"],
                 "db_uri": _gr_db_uri,
+                "FUSE_relpath": str("collections" / (gdr_coll_name / _relpp)),
             }
             _node.set_data("gdr", value=_gdr_meta)
             _foldermeta = _node.get_data()
@@ -255,8 +272,9 @@ class UploadDataset(UploadNode):
         def item_callback(item, fs_path):
             _pp = pathlib.Path(fs_path)
             ##nodepath = _pp.relative_to(self._ppath.parent).as_posix()
-            nodepath = _pp.relative_to(self._ppath).as_posix()
-            _node = self.rootnode.get_node_by_nodepath(nodepath)
+            _relpp = _pp.relative_to(self._ppath)
+            nodepath = _relpp.as_posix()
+            _node = self.dstree.get_node_by_nodepath(nodepath)
             # print(_pp)
             # print(nodepath)
             _uri, _hash = vn_utilities.make_fs_uri(fs_path, fs_dev_uuid=self.fs_dev_uuid)
@@ -269,10 +287,11 @@ class UploadDataset(UploadNode):
             for _child_file in gc.listFile(item["_id"]):
                 _file_ids.append(_child_file["_id"])
             _gdr_meta = {
-                "gdr_collection": self.get_data("gdr", "collection"),
+                "gdr_coll_name": gdr_coll_name,
                 "ds_folder_id": ds_folder["_id"],
                 "db_uri": _gr_db_uri,
                 "gdr_file_id": _file_ids,
+                "FUSE_relpath": str("collections" / (gdr_coll_name / _relpp)),
             }
             _node.set_data("gdr", value=_gdr_meta)
             _itemmeta = _node.get_data()
