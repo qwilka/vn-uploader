@@ -101,7 +101,7 @@ class UploadDataset(UploadNode):
         for localdir, dirs, files in os.walk(self.fs_path, topdown=True):
             _loc_ppath = pathlib.Path(localdir)
             _loc_relppath = _loc_ppath.relative_to(self.fs_path)
-            _parent = dstree.get_node_by_nodepath(_loc_relppath.as_posix())
+            _parent = dstree.get_node_by_path(_loc_relppath.as_posix())
             if _parent:
                 for dirname in dirs:
                     _dir_ppath =  _loc_ppath / dirname 
@@ -176,7 +176,7 @@ class UploadDataset(UploadNode):
                         if str(_zf_ppath.parent)=='.':
                             _zf_node = UploadNode(_zf_ppath.name, _node, None )
                         else:
-                            _zparent = _node.get_node_by_nodepath(str(_zf_ppath.parent))
+                            _zparent = _node.get_node_by_path(str(_zf_ppath.parent))
                             _zf_node = UploadNode(_zf_ppath.name, _zparent, None )
                         _zf_node._id = _hash
                         _zf_node.set_data("state", value=_state)
@@ -249,7 +249,7 @@ class UploadDataset(UploadNode):
             ##nodepath = _pp.relative_to(self._ppath.parent).as_posix()
             _relpp = _pp.relative_to(self._ppath)
             nodepath = _relpp.as_posix()
-            _node = self.dstree.get_node_by_nodepath(nodepath)
+            _node = self.dstree.get_node_by_path(nodepath)
             _uri, _hash = vn_utilities.make_fs_uri(fs_path, fs_dev_uuid=self.fs_dev_uuid)
             _gr_db_uri = {
                 "db": "girder",
@@ -274,7 +274,7 @@ class UploadDataset(UploadNode):
             ##nodepath = _pp.relative_to(self._ppath.parent).as_posix()
             _relpp = _pp.relative_to(self._ppath)
             nodepath = _relpp.as_posix()
-            _node = self.dstree.get_node_by_nodepath(nodepath)
+            _node = self.dstree.get_node_by_path(nodepath)
             # print(_pp)
             # print(nodepath)
             _uri, _hash = vn_utilities.make_fs_uri(fs_path, fs_dev_uuid=self.fs_dev_uuid)
